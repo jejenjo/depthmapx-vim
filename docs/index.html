@@ -1,0 +1,1135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIM for depthmapX</title>
+<meta name="description" content="Compute Visibility Integration Mismatch (VIM) from a depthmapX VGA export, in your browser. Your file never leaves your computer.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --line: #e1e0d9;
+  --ring: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+  --error: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --line: #2c2c2a;
+    --ring: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --line: #2c2c2a;
+  --ring: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 0 0 12px; }
+h3 { font-size: 15px; margin: 18px 0 6px; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+.lede { color: var(--ink-2); max-width: 720px; margin-bottom: 4px; }
+.privacy { color: var(--ink-2); font-size: 13px; display: flex; gap: 6px; align-items: center; margin: 8px 0 24px; }
+.privacy svg { flex: none; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--ring);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+details > summary { cursor: pointer; font-weight: 600; }
+details[open] > summary { margin-bottom: 8px; }
+ol, ul { margin: 0 0 12px; padding-left: 22px; }
+li { margin: 2px 0; }
+code, kbd { font: 13px ui-monospace, "Cascadia Mono", Consolas, monospace; background: var(--surface-2); border-radius: 4px; padding: 1px 5px; }
+pre { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 12px; }
+pre code { background: none; padding: 0; }
+
+/* drop zone */
+.drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  border: 2px dashed var(--line); border-radius: 12px; padding: 32px 16px; text-align: center;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over, .drop:focus-within { border-color: var(--accent); background: var(--surface-2); }
+.drop strong { font-size: 16px; }
+.drop span { color: var(--ink-2); font-size: 13px; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  border: 1px solid var(--ring); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 7px 12px; cursor: pointer;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.options { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px 16px; margin-top: 8px; }
+.options label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.options input, .options select, select.inline {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+}
+.hint { color: var(--muted); font-size: 12px; }
+.error { color: var(--error); font-weight: 600; margin-top: 12px; }
+[hidden] { display: none !important; }
+
+/* results */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 650; line-height: 1.2; margin-top: 2px; }
+.tile .sub { color: var(--muted); font-size: 12px; }
+.maphead { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+  font: inherit; font-size: 13px; font-weight: 600; border: 0; background: var(--surface); color: var(--ink-2);
+  padding: 6px 12px; cursor: pointer; border-right: 1px solid var(--line);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.mapwrap { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow: hidden; }
+#map { display: block; width: 100%; height: auto; image-rendering: pixelated; cursor: crosshair; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13px; color: var(--ink-2); align-items: center; }
+.legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; box-shadow: inset 0 0 0 1px var(--ring); }
+.ramp { display: inline-flex; align-items: center; gap: 8px; }
+.ramp canvas { width: 220px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ring); }
+.tip {
+  position: absolute; pointer-events: none; z-index: 2;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--ring); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .14); padding: 8px 10px; font-size: 12px; line-height: 1.5; min-width: 180px;
+}
+.tip b { font-size: 13px; }
+.tip .k { color: var(--ink-2); }
+.tip table { border-collapse: collapse; margin-top: 4px; }
+.tip td { padding: 0 8px 0 0; }
+.tip td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+table.data { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.data th, table.data td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+table.data th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+table.data td.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.data th.n { text-align: right; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+.scroll { overflow-x: auto; }
+footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>VIM for depthmapX</h1>
+  <p class="lede">
+    Visibility Integration Mismatch shows <em>where</em> a plan is unintelligible. Each point of a
+    visibility graph is compared with points that have a similar-sized view: <strong>hidden centres</strong>
+    are more integrated than their view suggests, <strong>false centres</strong> look open but sit at the
+    edge of the layout.
+  </p>
+  <p class="privacy">
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1a4 4 0 0 0-4 4v2H3v8h10V7h-1V5a4 4 0 0 0-4-4Zm-2.5 4a2.5 2.5 0 0 1 5 0v2h-5V5Z"/></svg>
+    Runs entirely in your browser. Your file is never uploaded.
+  </p>
+
+  <section class="card">
+    <details>
+      <summary>How to export from depthmapX</summary>
+      <ol>
+        <li>Import your plan, <strong>Set Grid</strong> and fill the spaces.</li>
+        <li><strong>Tools → Visibility → Make Visibility Graph</strong>.</li>
+        <li><strong>Tools → Visibility → Run Visibility Graph Analysis</strong>: tick <strong>Calculate
+          visibility relationships</strong> and <strong>Include global measures</strong> (radius <code>n</code>).</li>
+        <li>With the visibility graph displayed, <strong>File → Export</strong> and save as <code>.csv</code>
+          or <code>.txt</code>. Also save your graph (<strong>File → Save</strong>) if you want to put VIM
+          back onto the map later.</li>
+      </ol>
+      <p class="hint">Works with any depthmapX version whose export has <code>Connectivity</code> and
+        <code>Visual Integration [HH]</code> columns.</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".csv,.txt,.tsv,text/csv,text/plain">
+      <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+      <strong>Drop your depthmapX export here</strong>
+      <span>or click to choose a .csv or .txt file</span>
+    </label>
+    <details id="advanced" style="margin-top:16px">
+      <summary>Options</summary>
+      <div class="options">
+        <label>Connectivity bands
+          <input type="number" id="opt-bands" min="1" step="1" value="40"></label>
+        <label>Min. points per band
+          <input type="number" id="opt-minband" min="1" step="1" value="10"></label>
+        <label>Strong hidden centre: VIM ≥
+          <input type="number" id="opt-strong" step="0.1" value="2"></label>
+        <label>Moderate hidden centre: VIM ≥
+          <input type="number" id="opt-moderate" step="0.1" value="1"></label>
+        <label>False centre: VIM ≤
+          <input type="number" id="opt-false" step="0.1" value="-1"></label>
+        <label>Plan units (for the scale bar)
+          <input type="text" id="opt-units" value="m" maxlength="12"></label>
+      </div>
+      <p class="hint" style="margin-top:10px">The defaults are the published method. Change them only for
+        sensitivity analysis; the summary records the values used.</p>
+      <div class="row" style="margin-top:4px"><button class="btn" id="rerun" type="button" disabled>Recalculate</button></div>
+    </details>
+    <p class="error" id="error" role="alert" hidden></p>
+  </section>
+
+  <section id="results" hidden>
+    <div class="tiles" id="tiles"></div>
+
+    <section class="card">
+      <div class="maphead">
+        <div>
+          <h2 id="maptitle" style="margin:0">Map</h2>
+          <div class="hint" id="mapsub"></div>
+        </div>
+        <div class="row">
+          <select class="inline" id="integ" aria-label="Integration column" hidden></select>
+          <div class="seg" role="group" aria-label="Map view">
+            <button type="button" data-view="class" aria-pressed="true">VIM Class</button>
+            <button type="button" data-view="vim" aria-pressed="false">VIM</button>
+            <button type="button" data-view="clusters" aria-pressed="false">Clusters</button>
+          </div>
+        </div>
+      </div>
+      <div class="mapwrap" id="mapwrap">
+        <canvas id="map" role="img" aria-label="VIM map"></canvas>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="row" style="margin-top:14px">
+        <label class="hint" style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="labels" checked> Number the top
+          <input type="number" id="labeltop" min="0" max="99" value="10" style="width:52px;font:inherit;font-size:13px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)">
+          clusters</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Downloads</h2>
+      <div class="row">
+        <button class="btn primary" type="button" id="dl-png">Map PNG</button>
+        <button class="btn" type="button" id="dl-table">Results table</button>
+        <button class="btn" type="button" id="dl-summary">Summary</button>
+        <button class="btn" type="button" id="dl-clusters">Clusters table</button>
+        <button class="btn" type="button" id="dl-join">depthmapX join file</button>
+      </div>
+      <p class="hint" style="margin-top:10px">The map PNG is the current view at print resolution, with title,
+        legend and scale bar. The results table is your export with the six VIM columns added.</p>
+      <details style="margin-top:8px">
+        <summary>Put VIM back onto your map in depthmapX</summary>
+        <p>The join file holds <code>Ref</code> and the VIM columns. depthmapX's command-line tool can attach it
+          to the visibility graph in your saved <code>.graph</code>:</p>
+        <pre><code id="joincmd">depthmapXcli -m IMPORT -f plan.graph -o plan_vim.graph -if plan_vga_vim_join.csv -iaa</code></pre>
+        <p>Open <code>plan_vim.graph</code> in depthmapX: the VIM columns are in the attribute list. Colour by
+          <strong>VIM Map (VIM+5)</strong> or <strong>VIM Class</strong>; depthmapX shows negative numbers as
+          "no value", so plain <strong>VIM</strong> leaves false centres blank.</p>
+      </details>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <h2>Classes</h2>
+        <div class="scroll"><table class="data" id="classtable"></table></div>
+        <h3>Correlations (Pearson r)</h3>
+        <div class="scroll"><table class="data" id="corrtable"></table></div>
+      </section>
+      <section class="card">
+        <h2>Top hidden-centre clusters</h2>
+        <div class="scroll"><table class="data" id="clustertable"></table></div>
+        <p class="hint" id="clusternote" style="margin-top:8px"></p>
+      </section>
+    </div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Method</summary>
+      <ol>
+        <li><strong>Valid points</strong> have connectivity ≥ 0 and visual integration ≥ 0
+          (<code>Visual Integration [HH]</code>).</li>
+        <li><strong>Bands.</strong> Points are ranked by connectivity and split into 40 equal-sized quantile
+          bands. Points with identical connectivity always share a band (the tie group goes to the band of its
+          middle rank). Small plans get ⌊n/10⌋ bands so each keeps at least ~10 points.</li>
+        <li><strong>Expected integration</strong> in each band: the median and the sample standard deviation.</li>
+        <li><strong>VIM</strong> = (integration − band median) ÷ band SD; 0 when the SD is 0.</li>
+        <li><strong>Classes:</strong> strong hidden centre VIM ≥ 2 · moderate hidden centre 1 ≤ VIM &lt; 2 ·
+          false centre VIM ≤ −1 · otherwise as expected.</li>
+        <li><strong>Clusters:</strong> strong hidden-centre cells that touch, diagonals included, form a
+          cluster. Clusters are ranked by summed VIM, so a cluster ranks high by being strong, large or both.</li>
+      </ol>
+      <p>Because each point is compared only within its connectivity band, VIM is independent of visual-field
+        size by construction. This page gives the same values as the <code>depthmapx_vim.py</code> command-line
+        tool and the C++ implementation, to depthmapX's export precision.</p>
+    </details>
+  </section>
+
+  <footer>
+    <span id="ver"></span> ·
+    If you use VIM in published work, please cite: Jogy, J. J., &amp; Dev, G. (2026). <i>Visibility
+    Integration Mismatch: A Space Syntax Measure in depthmapX for Locating Hospital Circulation
+    Conflicts, a Case of Thrissur.</i> Unpublished manuscript. ·
+    <a href="https://github.com/jejenjo/depthmapx-vim">Source code</a> (GPL-3.0)
+  </footer>
+</main>
+
+<script>
+/* ======================================================================
+   Core: a line-by-line port of depthmapx_vim.py / vgavim.cpp.
+   Keep it identical to the Python version; validated value-for-value.
+   ====================================================================== */
+const DepthmapxVim = (() => {
+  const VERSION = "1.0.0";
+  const INTEGRATION_PREFIX = "Visual Integration [HH]";
+  const MISSING = -1.0;
+  const CLASS_NAMES = ["false centre", "as expected", "moderate hidden centre", "strong hidden centre"];
+
+  class InputError extends Error {}
+
+  const f32 = Math.fround;
+
+  // C printf("%.8g") as depthmapX writes exports
+  function fmt(v) {
+    if (v === 0 || Object.is(v, -0)) return "0";
+    const exp = v.toExponential(7);               // d.ddddddde±x, correctly rounded
+    let [mant, e] = exp.split("e");
+    const ei = parseInt(e, 10);
+    if (ei < -4 || ei >= 8) {
+      mant = mant.includes(".") ? mant.replace(/0+$/, "").replace(/\.$/, "") : mant;
+      const sign = ei < 0 ? "-" : "+";
+      const abs = Math.abs(ei);
+      return mant + "e" + sign + (abs < 10 ? "0" + abs : String(abs));
+    }
+    let s = v.toFixed(Math.max(0, 7 - ei));
+    if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "-0" ? "0" : s;
+  }
+
+  function median(values) {
+    const v = values.slice().sort((a, b) => a - b);
+    const n = v.length;
+    if (n === 0) return 0.0;
+    return n % 2 ? v[(n - 1) / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
+  }
+
+  function sampleSD(values) {
+    if (values.length < 2) return 0.0;
+    let mean = 0.0;
+    for (const x of values) mean += x;
+    mean /= values.length;
+    let ss = 0.0;
+    for (const x of values) ss += (x - mean) * (x - mean);
+    return Math.sqrt(ss / (values.length - 1));
+  }
+
+  function pearson(a, b) {
+    const n = a.length;
+    if (n < 2) return NaN;
+    let sa = 0, sb = 0;
+    for (const x of a) sa += x;
+    for (const y of b) sb += y;
+    const ma = sa / n, mb = sb / n;
+    let cov = 0, va = 0, vb = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = a[i] - ma, dy = b[i] - mb;
+      cov += dx * dy; va += dx * dx; vb += dy * dy;
+    }
+    return va > 0 && vb > 0 ? cov / Math.sqrt(va * vb) : NaN;
+  }
+
+  // Python round(): half to even
+  function roundHalfEven(x) {
+    const r = Math.round(x);
+    return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r;
+  }
+
+  function computeVim(points, opts) {
+    const n = points.length;
+    if (n === 0) return [];
+    const numBands = Math.max(1, opts.bands);
+    const bands = Math.max(1, Math.min(numBands, Math.floor(n / Math.max(1, opts.minPerBand))));
+
+    // 1. rank by connectivity; ties share the band of the tie group's middle rank
+    const order = [...Array(n).keys()].sort((i, j) => points[i].connectivity - points[j].connectivity);
+    let k = 0;
+    while (k < n) {
+      let e = k;
+      while (e + 1 < n && points[order[e + 1]].connectivity === points[order[k]].connectivity) e++;
+      const midRank = 0.5 * (k + e);
+      let band = Math.floor(midRank * bands / n);
+      if (band > bands - 1) band = bands - 1;
+      for (let t = k; t <= e; t++) points[order[t]].band = band;
+      k = e + 1;
+    }
+
+    // 2. median and sample SD of integration per band
+    const bandValues = Array.from({ length: bands }, () => []);
+    for (const p of points) bandValues[p.band].push(p.integration);
+    const bandMedian = bandValues.map(median);
+    const bandSD = bandValues.map(sampleSD);
+
+    // 3. VIM and class
+    const index = new Map();
+    points.forEach((p, q) => {
+      const sd = bandSD[p.band];
+      p.vim = sd > 0.0 ? (p.integration - bandMedian[p.band]) / sd : 0.0;
+      p.cls = p.vim >= opts.strong ? 3 : p.vim >= opts.moderate ? 2 : p.vim <= opts.falseCentre ? 0 : 1;
+      index.set(p.gx * 65536 + p.gy, q);
+    });
+
+    // 4. cluster strong hidden centres (8-neighbour flood fill)
+    const clusters = [];
+    const visited = new Uint8Array(n);
+    for (let q = 0; q < n; q++) {
+      if (points[q].cls !== 3 || visited[q]) continue;
+      const members = [];
+      let vimSum = 0.0;
+      const stack = [q];
+      visited[q] = 1;
+      while (stack.length) {
+        const cur = stack.pop();
+        members.push(cur);
+        vimSum += points[cur].vim;
+        const cx = points[cur].gx, cy = points[cur].gy;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const nb = index.get((cx + dx) * 65536 + (cy + dy));
+            if (nb !== undefined && !visited[nb] && points[nb].cls === 3) {
+              visited[nb] = 1;
+              stack.push(nb);
+            }
+          }
+        }
+      }
+      clusters.push({ members, vimSum });
+    }
+    clusters.sort((a, b) => b.vimSum - a.vimSum); // stable: ties keep discovery order
+
+    return clusters.map((c, i) => {
+      const rank = i + 1;
+      for (const m of c.members) { points[m].cluster = rank; points[m].clusterSize = c.members.length; }
+      return { rank, members: c.members.map(m => points[m]), vimSum: c.vimSum };
+    });
+  }
+
+  // ---- I/O ------------------------------------------------------------
+  function parseLine(line, d) {
+    const out = [];
+    let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) {
+        if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+        else cur += ch;
+      } else if (ch === '"' && cur === "") q = true;
+      else if (ch === d) { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function readTable(text) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    const lines = text.split(/\r\n|\n|\r/);
+    const first = lines[0] || "";
+    const d = (first.split("\t").length - 1) > (first.split(",").length - 1) ? "\t" : ",";
+    const rows = lines.filter(l => l.length).map(l => parseLine(l, d)).filter(r => r.length && !(r.length === 1 && r[0] === ""));
+    if (!rows.length) throw new InputError("the file is empty");
+    return { header: rows[0].map(h => h.trim()), rows: rows.slice(1), delimiter: d };
+  }
+
+  function parseNumber(text) {
+    if (text === undefined || text === null) return null;
+    const t = String(text).trim();
+    if (!t.length || !/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(t)) return null;
+    const v = Number(t);
+    return Number.isFinite(v) ? v : null;
+  }
+
+  function gridCells(header, rows) {
+    if (header.includes("Ref")) {
+      const col = header.indexOf("Ref");
+      const cells = [];
+      let ok = true;
+      for (const r of rows) {
+        const ref = parseNumber(r[col]);
+        if (ref === null) { ok = false; break; }
+        const v = Math.trunc(ref);
+        cells.push([v >> 16, v & 0xFFFF]); // PixelRef: (x << 16) + y
+      }
+      if (ok) return { cells, source: "Ref" };
+    }
+    if (!header.includes("x") || !header.includes("y"))
+      throw new InputError("needs a 'Ref' column or 'x' and 'y' columns to locate points on the grid");
+    const xi = header.indexOf("x"), yi = header.indexOf("y");
+    const xs = rows.map(r => parseNumber(r[xi])), ys = rows.map(r => parseNumber(r[yi]));
+    if (xs.some(v => v === null) || ys.some(v => v === null)) throw new InputError("some x/y values are not numbers");
+    const ux = [...new Set(xs)].sort((a, b) => a - b), uy = [...new Set(ys)].sort((a, b) => a - b);
+    const gaps = [];
+    for (let i = 1; i < ux.length; i++) if (ux[i] - ux[i - 1] > 1e-9) gaps.push(ux[i] - ux[i - 1]);
+    for (let i = 1; i < uy.length; i++) if (uy[i] - uy[i - 1] > 1e-9) gaps.push(uy[i] - uy[i - 1]);
+    const spacing = gaps.length ? Math.min(...gaps) : 1.0;
+    const x0 = ux[0], y0 = uy[0];
+    return {
+      cells: xs.map((x, i) => [roundHalfEven((x - x0) / spacing), roundHalfEven((ys[i] - y0) / spacing)]),
+      source: "x/y (grid spacing " + Number(spacing.toPrecision(6)) + ")",
+    };
+  }
+
+  function integrationColumns(header) {
+    return header.filter(h => h.startsWith(INTEGRATION_PREFIX) &&
+      (h === INTEGRATION_PREFIX || h.slice(INTEGRATION_PREFIX.length).startsWith(" R")));
+  }
+
+  const vimColumnNames = s => ["VIM" + s, "VIM Map (VIM+5)" + s, "VIM Class" + s, "VIM Band" + s,
+    "VIM Hidden Centre Cluster" + s, "VIM Cluster Size" + s];
+
+  function csvField(v, d) {
+    v = String(v);
+    return (v.includes(d) || v.includes('"') || v.includes("\n") || v.includes("\r")) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  const toCSV = (rows, d) => rows.map(r => r.map(v => csvField(v, d)).join(d)).join("\n") + "\n";
+
+  function run(text, opts) {
+    const { header, rows, delimiter } = readTable(text);
+    const connectivity = opts.connectivity || "Connectivity";
+    if (!header.includes(connectivity))
+      throw new InputError("column '" + connectivity + "' not found. Run visibility analysis (Calculate visibility relationships) before exporting.");
+    const integCols = opts.integration && opts.integration.length ? opts.integration : integrationColumns(header);
+    if (!integCols.length)
+      throw new InputError("no '" + INTEGRATION_PREFIX + "' column found. Run visibility analysis with 'Include global measures' before exporting.");
+    for (const c of integCols) if (!header.includes(c)) throw new InputError("column '" + c + "' not found");
+
+    const { cells, source } = gridCells(header, rows);
+    const xi = header.indexOf("x"), yi = header.indexOf("y");
+    const connI = header.indexOf(connectivity);
+
+    const outHeader = header.slice();
+    const outRows = rows.map(r => r.concat(Array(Math.max(0, header.length - r.length)).fill("")));
+    for (const integ of integCols) {
+      const suffix = integ.startsWith(INTEGRATION_PREFIX) ? integ.slice(INTEGRATION_PREFIX.length) : "";
+      for (const name of vimColumnNames(suffix)) {
+        const i = outHeader.indexOf(name);
+        if (i >= 0) { outHeader.splice(i, 1); for (const r of outRows) r.splice(i, 1); }
+      }
+    }
+    const firstVimCol = outHeader.length;
+
+    const reports = [];
+    for (const integ of integCols) {
+      const suffix = integ.startsWith(INTEGRATION_PREFIX) ? integ.slice(INTEGRATION_PREFIX.length) : "";
+      const integI = header.indexOf(integ);
+      const points = [];
+      rows.forEach((r, idx) => {
+        let c = connI < r.length ? parseNumber(r[connI]) : null;
+        let v = integI < r.length ? parseNumber(r[integI]) : null;
+        if (c === null || v === null) return;
+        c = f32(c); v = f32(v);
+        if (c < 0.0 || v < 0.0) return;
+        const x = xi >= 0 && xi < r.length ? parseNumber(r[xi]) : null;
+        const y = yi >= 0 && yi < r.length ? parseNumber(r[yi]) : null;
+        points.push({ index: idx, gx: cells[idx][0], gy: cells[idx][1], x: x === null ? cells[idx][0] : x,
+          y: y === null ? cells[idx][1] : y, connectivity: c, integration: v,
+          band: 0, vim: 0, cls: 1, cluster: 0, clusterSize: 0 });
+      });
+      points.sort((a, b) => a.gx - b.gx || a.gy - b.gy); // depthmapX's visiting order
+
+      const ranked = computeVim(points, opts);
+      const bandsUsed = points.length ? Math.max(1, Math.min(Math.max(1, opts.bands), Math.floor(points.length / Math.max(1, opts.minPerBand)))) : 0;
+
+      const newVals = rows.map(() => Array(6).fill(fmt(MISSING)));
+      for (const p of points) {
+        const mapped = Math.max(-5.0, Math.min(5.0, p.vim)) + 5.0;
+        newVals[p.index] = [fmt(f32(p.vim)), fmt(f32(mapped)), String(p.cls), String(p.band + 1),
+          String(p.cluster), String(p.clusterSize)];
+      }
+      outHeader.push(...vimColumnNames(suffix));
+      outRows.forEach((r, i) => r.push(...newVals[i]));
+      reports.push({ suffix, integ, points, ranked, bandsUsed });
+    }
+
+    let join = null;
+    if (source === "Ref") {
+      const refI = header.indexOf("Ref");
+      join = [["Ref", ...outHeader.slice(firstVimCol)]];
+      rows.forEach((src, i) => join.push([src[refI], ...outRows[i].slice(firstVimCol)]));
+    }
+    return { header, rows, delimiter, cells, source, outHeader, outRows, join, reports, connectivity };
+  }
+
+  const pad = (s, n, right) => { s = String(s); return right ? s.padStart(n) : s.padEnd(n); };
+
+  function summaryText(sourceName, rep, res, opts) {
+    const { integ, points, ranked, bandsUsed } = rep;
+    const n = points.length, L = [];
+    L.push("Visibility Integration Mismatch (VIM) - depthmapx-vim " + VERSION + " (web)");
+    L.push("Input:            " + sourceName);
+    L.push("Integration:      " + integ + "   (connectivity: " + res.connectivity + ")");
+    L.push("Grid from:        " + res.source);
+    L.push("Parameters:       bands=" + opts.bands + " (used " + bandsUsed + "), min points/band=" + opts.minPerBand +
+      ", strong>=" + opts.strong + ", moderate>=" + opts.moderate + ", false<=" + opts.falseCentre);
+    L.push("Points:           " + n + " valid of " + res.rows.length + " rows");
+    if (!n) return L.join("\n") + "\n";
+    const sizes = new Map();
+    for (const p of points) sizes.set(p.band, (sizes.get(p.band) || 0) + 1);
+    const sv = [...sizes.values()];
+    L.push("Bands:            " + sizes.size + ", " + Math.min(...sv) + "-" + Math.max(...sv) + " points each");
+    const vims = points.map(p => p.vim);
+    L.push("VIM range:        " + Math.min(...vims).toFixed(3) + " to " + Math.max(...vims).toFixed(3));
+    L.push("", "Class counts");
+    for (let c = 0; c < 4; c++) {
+      const k = points.filter(p => p.cls === c).length;
+      L.push("  " + c + " " + pad(CLASS_NAMES[c], 24) + " " + pad(k, 8, true) + "  " + pad((100 * k / n).toFixed(1), 5, true) + "%");
+    }
+    const conn = points.map(p => p.connectivity), int = points.map(p => p.integration);
+    L.push("", "Correlations (Pearson r)");
+    L.push("  intelligibility r(Connectivity, Integration) = " + pearson(conn, int).toFixed(3));
+    L.push("  r(VIM, Integration)                          = " + pearson(vims, int).toFixed(3));
+    L.push("  r(VIM, Connectivity)                         = " + pearson(vims, conn).toFixed(3));
+    L.push("");
+    const single = ranked.filter(c => c.members.length === 1).length;
+    L.push("Hidden-centre clusters: " + ranked.length + " (single-cell: " + single + ", 5+ cells: " +
+      ranked.filter(c => c.members.length >= 5).length + ")");
+    if (ranked.length) {
+      L.push("  rank  cells  summed VIM  max VIM   centre x     centre y");
+      for (const c of ranked.slice(0, 10)) {
+        const m = c.members;
+        L.push("  " + pad(c.rank, 4, true) + "  " + pad(m.length, 5, true) + "  " + pad(c.vimSum.toFixed(2), 10, true) + "  " +
+          pad(Math.max(...m.map(p => p.vim)).toFixed(2), 7, true) + "   " +
+          pad(fmt(m.reduce((s, p) => s + p.x, 0) / m.length), 11) + "  " + pad(fmt(m.reduce((s, p) => s + p.y, 0) / m.length), 11));
+      }
+      if (ranked.length > 10) L.push("  ... " + (ranked.length - 10) + " more in the clusters file");
+    }
+    return L.join("\n") + "\n";
+  }
+
+  function clustersRows(ranked) {
+    const out = [["Cluster Rank", "Cells", "Summed VIM", "Mean VIM", "Max VIM", "Centre x", "Centre y", "Min x", "Max x", "Min y", "Max y"]];
+    for (const c of ranked) {
+      const xs = c.members.map(p => p.x), ys = c.members.map(p => p.y);
+      let sx = 0, sy = 0;
+      for (const v of xs) sx += v;
+      for (const v of ys) sy += v;
+      out.push([c.rank, c.members.length, fmt(c.vimSum), fmt(c.vimSum / c.members.length),
+        fmt(Math.max(...c.members.map(p => p.vim))), fmt(sx / xs.length), fmt(sy / ys.length),
+        fmt(Math.min(...xs)), fmt(Math.max(...xs)), fmt(Math.min(...ys)), fmt(Math.max(...ys))]);
+    }
+    return out;
+  }
+
+  return { VERSION, CLASS_NAMES, InputError, run, toCSV, summaryText, clustersRows, pearson, fmt, vimColumnNames };
+})();
+
+/* ======================================================================
+   Colour: diverging blue <-> red with a neutral gray midpoint.
+   VIM Class is the same diverging scale cut into four ordered steps.
+   ====================================================================== */
+const Palette = (() => {
+  const P = {
+    // class steps validated all-pairs (map form): worst CVD dE 17.9 light / 18.1 dark,
+    // normal-vision dE 23.4 / 26.4; the red arm passes the ordinal checks in both modes
+    light: {
+      surface: "#fcfcfb", ink: "#0b0b0b", ink2: "#52514e", muted: "#898781", none: "#efeee9",
+      classes: ["#2a78d6", "#d3d2cb", "#e86e6d", "#8f1f1e"],
+      ramp: [[-5, "#104281"], [-2.5, "#3987e5"], [0, "#d3d2cb"], [2.5, "#e86e6d"], [5, "#8f1f1e"]],
+      clusterTop: "#8f1f1e", clusterRest: "#e86e6d", base: "#d3d2cb",
+    },
+    dark: {
+      surface: "#1a1a19", ink: "#f0efec", ink2: "#c3c2b7", muted: "#898781", none: "#232321",
+      classes: ["#3987e5", "#2c2c2a", "#a84a49", "#f2a3a3"],
+      ramp: [[-5, "#86b6ef"], [-2.5, "#256abf"], [0, "#2c2c2a"], [2.5, "#a84a49"], [5, "#f2a3a3"]],
+      clusterTop: "#f2a3a3", clusterRest: "#a84a49", base: "#2c2c2a",
+    },
+  };
+  // OKLab interpolation for the continuous ramp
+  const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  const delin = c => c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055;
+  function toLab(hex) {
+    const [r, g, b] = hex2rgb(hex).map(lin);
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+  }
+  function fromLab([L, a, b]) {
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+    const rgb = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+    return rgb.map(c => Math.round(Math.min(1, Math.max(0, delin(c))) * 255));
+  }
+  function rampFn(stops) {
+    const labs = stops.map(([v, h]) => [v, toLab(h)]);
+    const lut = [];
+    for (let i = 0; i <= 200; i++) {
+      const v = -5 + i * 0.05;
+      let j = 0;
+      while (j < labs.length - 2 && v > labs[j + 1][0]) j++;
+      const [v0, a] = labs[j], [v1, b] = labs[j + 1];
+      const t = Math.min(1, Math.max(0, (v - v0) / (v1 - v0)));
+      lut.push(fromLab(a.map((x, k) => x + (b[k] - x) * t)));
+    }
+    return v => lut[Math.round((Math.max(-5, Math.min(5, v)) + 5) / 0.05)];
+  }
+  const ramps = { light: rampFn(P.light.ramp), dark: rampFn(P.dark.ramp) };
+  const rgb = h => hex2rgb(h).map(c => Math.round(c * 255));
+  return { P, ramps, rgb };
+})();
+
+/* ======================================================================
+   UI
+   ====================================================================== */
+(() => {
+  const $ = id => document.getElementById(id);
+  const V = DepthmapxVim;
+  let fileName = "", fileText = "", result = null, repIdx = 0, view = "class";
+  $("ver").textContent = "depthmapx-vim " + V.VERSION;
+
+  const isDark = () => {
+    const t = document.documentElement.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return matchMedia("(prefers-color-scheme: dark)").matches;
+  };
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => result && render());
+
+  function opts() {
+    const num = (id, d) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : d; };
+    return {
+      bands: Math.max(1, Math.round(num("opt-bands", 40))),
+      minPerBand: Math.max(1, Math.round(num("opt-minband", 10))),
+      strong: num("opt-strong", 2), moderate: num("opt-moderate", 1), falseCentre: num("opt-false", -1),
+    };
+  }
+
+  function showError(msg) { $("error").textContent = msg; $("error").hidden = !msg; }
+
+  function load(file) {
+    const reader = new FileReader();
+    reader.onload = () => { fileName = file.name; fileText = reader.result; process(); };
+    reader.onerror = () => showError("Could not read the file.");
+    reader.readAsText(file);
+  }
+
+  function process() {
+    showError("");
+    try {
+      result = V.run(fileText, opts());
+    } catch (e) {
+      result = null;
+      $("results").hidden = true;
+      showError(e instanceof V.InputError ? "This file can't be used: " + e.message : "Something went wrong reading this file: " + e.message);
+      return;
+    }
+    repIdx = 0;
+    const sel = $("integ");
+    sel.innerHTML = "";
+    result.reports.forEach((r, i) => { const o = document.createElement("option"); o.value = i; o.textContent = r.integ; sel.appendChild(o); });
+    sel.hidden = result.reports.length < 2;
+    $("rerun").disabled = false;
+    $("results").hidden = false;
+    render();
+  }
+
+  // ---- grid geometry ----------------------------------------------------
+  function geometry(rep) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const [gx, gy] of result.cells) {
+      if (gx < minX) minX = gx; if (gx > maxX) maxX = gx;
+      if (gy < minY) minY = gy; if (gy > maxY) maxY = gy;
+    }
+    const byCell = new Map();
+    for (const p of rep.points) byCell.set(p.gx * 65536 + p.gy, p);
+    // plan units per grid cell, for the scale bar
+    let spacing = null;
+    const pts = rep.points;
+    for (let i = 1; i < pts.length && spacing === null; i++) {
+      if (pts[i].gx !== pts[0].gx) spacing = Math.abs((pts[i].x - pts[0].x) / (pts[i].gx - pts[0].gx));
+    }
+    return { minX, maxX, minY, maxY, cols: maxX - minX + 1, rows: maxY - minY + 1, byCell, spacing };
+  }
+
+  function cellColor(p, pal, mode, topN) {
+    if (view === "class") return Palette.rgb(pal.classes[p.cls]);
+    if (view === "vim") return Palette.ramps[mode](p.vim);
+    if (p.cluster > 0) return Palette.rgb(p.cluster <= topN ? pal.clusterTop : pal.clusterRest);
+    return Palette.rgb(pal.base);
+  }
+
+  // draw the grid into ctx at `s` px per cell, origin (ox, oy)
+  function drawGrid(ctx, rep, g, s, ox, oy, mode) {
+    const pal = Palette.P[mode];
+    const topN = labelTop();
+    const img = ctx.createImageData(g.cols * s, g.rows * s);
+    const data = img.data;
+    const put = (col, row, rgb) => {
+      for (let yy = 0; yy < s; yy++) {
+        let o = ((row * s + yy) * g.cols * s + col * s) * 4;
+        for (let xx = 0; xx < s; xx++, o += 4) { data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255; }
+      }
+    };
+    const none = Palette.rgb(pal.none);
+    for (const [gx, gy] of result.cells) {
+      const p = g.byCell.get(gx * 65536 + gy);
+      put(gx - g.minX, g.maxY - gy, p ? cellColor(p, pal, mode, topN) : none);
+    }
+    ctx.putImageData(img, ox, oy);
+  }
+
+  function labelTop() { return $("labels").checked ? Math.max(0, parseInt($("labeltop").value, 10) || 0) : 0; }
+
+  function drawLabels(ctx, rep, g, s, ox, oy, mode, fontPx) {
+    const n = labelTop();
+    if (!n) return;
+    const pal = Palette.P[mode];
+    ctx.save();
+    ctx.font = "600 " + fontPx + "px system-ui, -apple-system, 'Segoe UI', sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const c of rep.ranked.slice(0, n)) {
+      let sx = 0, sy = 0;
+      for (const p of c.members) { sx += p.gx; sy += p.gy; }
+      const cx = ox + (sx / c.members.length - g.minX + 0.5) * s;
+      const cy = oy + (g.maxY - sy / c.members.length + 0.5) * s;
+      const r = fontPx * 0.78;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = pal.surface; ctx.fill();
+      ctx.lineWidth = Math.max(1, fontPx / 10); ctx.strokeStyle = pal.ink; ctx.stroke();
+      ctx.fillStyle = pal.ink; ctx.fillText(String(c.rank), cx, cy + fontPx * 0.04);
+    }
+    ctx.restore();
+  }
+
+  // ---- render ------------------------------------------------------------
+  let geo = null, cellPx = 1;
+  function render() {
+    const rep = result.reports[repIdx];
+    const mode = isDark() ? "dark" : "light";
+    geo = geometry(rep);
+    const wrap = $("mapwrap");
+    const avail = Math.max(200, wrap.clientWidth - 24);
+    const dpr = window.devicePixelRatio || 1;
+    // fill the width, but keep tall plans within ~70% of the window height
+    const cssCell = Math.min(avail / geo.cols, (window.innerHeight * 0.7) / geo.rows);
+    cellPx = Math.max(1, Math.ceil(cssCell * dpr));
+    const cv = $("map");
+    cv.width = geo.cols * cellPx; cv.height = geo.rows * cellPx;
+    cv.style.width = Math.round(geo.cols * cssCell) + "px";
+    const ctx = cv.getContext("2d");
+    drawGrid(ctx, rep, geo, cellPx, 0, 0, mode);
+    drawLabels(ctx, rep, geo, cellPx, 0, 0, mode, Math.max(10, Math.min(16, cellPx * 2.2)) * dpr);
+
+    const titles = { class: "VIM Class", vim: "VIM", clusters: "Hidden-centre clusters" };
+    $("maptitle").textContent = titles[view];
+    $("mapsub").textContent = fileName + " · " + rep.integ + " · " + rep.points.length.toLocaleString() + " points";
+    renderLegend(mode);
+    renderTables(rep);
+    $("joincmd").textContent = "depthmapXcli -m IMPORT -f plan.graph -o plan_vim.graph -if " + stem() + "_vim_join.csv -iaa";
+    $("dl-join").hidden = !result.join;
+  }
+
+  function legendItems(mode) {
+    const pal = Palette.P[mode];
+    const o = opts();
+    if (view === "class") return [
+      [pal.classes[0], "False centre (VIM ≤ " + o.falseCentre + ")"],
+      [pal.classes[1], "As expected"],
+      [pal.classes[2], "Moderate hidden centre (" + o.moderate + " ≤ VIM < " + o.strong + ")"],
+      [pal.classes[3], "Strong hidden centre (VIM ≥ " + o.strong + ")"],
+    ];
+    if (view === "clusters") return [
+      [pal.clusterTop, "Top " + labelTop() + " clusters"],
+      [pal.clusterRest, "Other strong hidden-centre clusters"],
+      [pal.base, "Not in a cluster"],
+    ];
+    return null;
+  }
+
+  function renderLegend(mode) {
+    const el = $("legend");
+    el.innerHTML = "";
+    const items = legendItems(mode);
+    if (items) {
+      for (const [c, t] of items) {
+        const s = document.createElement("span");
+        s.innerHTML = '<span class="sw" style="background:' + c + '"></span>';
+        s.appendChild(document.createTextNode(t));
+        el.appendChild(s);
+      }
+    } else {
+      const r = document.createElement("span");
+      r.className = "ramp";
+      const cv = document.createElement("canvas");
+      cv.width = 220; cv.height = 12;
+      const ctx = cv.getContext("2d");
+      for (let x = 0; x < 220; x++) {
+        const c = Palette.ramps[mode](-5 + 10 * x / 219);
+        ctx.fillStyle = "rgb(" + c.join(",") + ")"; ctx.fillRect(x, 0, 1, 12);
+      }
+      r.append("−5 false centre", cv, "+5 hidden centre");
+      el.appendChild(r);
+      const note = document.createElement("span");
+      note.className = "hint";
+      note.textContent = "Gray = as expected (VIM 0). Values beyond ±5 shown at the ends.";
+      el.appendChild(note);
+    }
+  }
+
+  function renderTables(rep) {
+    const pts = rep.points, n = pts.length;
+    const counts = [0, 0, 0, 0];
+    for (const p of pts) counts[p.cls]++;
+    const conn = pts.map(p => p.connectivity), integ = pts.map(p => p.integration), vims = pts.map(p => p.vim);
+    const r = V.pearson(conn, integ);
+    const big = rep.ranked.filter(c => c.members.length >= 5).length;
+
+    $("tiles").innerHTML = "";
+    const tile = (label, value, sub) => {
+      const d = document.createElement("div");
+      d.className = "tile";
+      d.innerHTML = '<div class="label"></div><div class="value"></div><div class="sub"></div>';
+      d.children[0].textContent = label; d.children[1].textContent = value; d.children[2].textContent = sub || "";
+      $("tiles").appendChild(d);
+    };
+    tile("Points", n.toLocaleString(), rep.bandsUsed + " connectivity bands");
+    tile("Strong hidden centres", (100 * counts[3] / n).toFixed(1) + "%", counts[3].toLocaleString() + " points");
+    tile("False centres", (100 * counts[0] / n).toFixed(1) + "%", counts[0].toLocaleString() + " points");
+    tile("Clusters", rep.ranked.length.toLocaleString(), big + " with 5+ cells");
+    tile("Intelligibility", "r = " + r.toFixed(2), "connectivity vs integration");
+
+    const o = opts();
+    const names = ["False centre", "As expected", "Moderate hidden centre", "Strong hidden centre"];
+    const rule = ["VIM ≤ " + o.falseCentre, "", o.moderate + " ≤ VIM < " + o.strong, "VIM ≥ " + o.strong];
+    const pal = Palette.P[isDark() ? "dark" : "light"];
+    let h = '<thead><tr><th>Class</th><th class="n">Points</th><th class="n">Share</th></tr></thead><tbody>';
+    for (let c = 0; c < 4; c++) {
+      h += '<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:' +
+        pal.classes[c] + '"></span>' + c + " · " + names[c] + (rule[c] ? ' <span class="hint">(' + rule[c] + ")</span>" : "") +
+        '</td><td class="n">' + counts[c].toLocaleString() + '</td><td class="n">' + (100 * counts[c] / n).toFixed(1) + "%</td></tr>";
+    }
+    $("classtable").innerHTML = h + "</tbody>";
+
+    $("corrtable").innerHTML = '<tbody><tr><td>Intelligibility: connectivity vs integration</td><td class="n">' + r.toFixed(3) +
+      '</td></tr><tr><td>VIM vs integration</td><td class="n">' + V.pearson(vims, integ).toFixed(3) +
+      '</td></tr><tr><td>VIM vs connectivity</td><td class="n">' + V.pearson(vims, conn).toFixed(3) + "</td></tr></tbody>";
+
+    let c = '<thead><tr><th class="n">Rank</th><th class="n">Cells</th><th class="n">Summed VIM</th><th class="n">Max VIM</th><th class="n">Centre x</th><th class="n">Centre y</th></tr></thead><tbody>';
+    for (const cl of rep.ranked.slice(0, 10)) {
+      const m = cl.members;
+      c += '<tr><td class="n">' + cl.rank + '</td><td class="n">' + m.length + '</td><td class="n">' + cl.vimSum.toFixed(2) +
+        '</td><td class="n">' + Math.max(...m.map(p => p.vim)).toFixed(2) + '</td><td class="n">' +
+        V.fmt(m.reduce((s, p) => s + p.x, 0) / m.length) + '</td><td class="n">' + V.fmt(m.reduce((s, p) => s + p.y, 0) / m.length) + "</td></tr>";
+    }
+    if (!rep.ranked.length) c += '<tr><td colspan="6">No strong hidden centres.</td></tr>';
+    $("clustertable").innerHTML = c + "</tbody>";
+    const single = rep.ranked.filter(cl => cl.members.length === 1).length;
+    $("clusternote").textContent = rep.ranked.length > 10
+      ? "Showing 10 of " + rep.ranked.length + ". " + single + " clusters are a single cell; treat those with caution. Full list in the clusters table download."
+      : single ? single + " clusters are a single cell; treat those with caution." : "";
+  }
+
+  // ---- hover -------------------------------------------------------------
+  $("map").addEventListener("mousemove", e => {
+    if (!result || !geo) return;
+    const cv = $("map"), rect = cv.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / rect.width * geo.cols);
+    const row = Math.floor((e.clientY - rect.top) / rect.height * geo.rows);
+    const p = geo.byCell.get((col + geo.minX) * 65536 + (geo.maxY - row));
+    const tip = $("tip");
+    if (!p) { tip.hidden = true; return; }
+    const names = ["False centre", "As expected", "Moderate hidden centre", "Strong hidden centre"];
+    tip.innerHTML = "<b></b><table><tbody></tbody></table>";
+    tip.firstChild.textContent = names[p.cls];
+    const rows = [["VIM", p.vim.toFixed(3)], ["Band", p.band + 1], ["Connectivity", V.fmt(p.connectivity)],
+      ["Integration [HH]", V.fmt(p.integration)], ["Cluster", p.cluster ? "#" + p.cluster + " (" + p.clusterSize + " cells)" : "–"],
+      ["x, y", V.fmt(p.x) + ", " + V.fmt(p.y)]];
+    const tb = tip.querySelector("tbody");
+    for (const [k, v] of rows) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td class="k"></td><td></td>';
+      tr.children[0].textContent = k; tr.children[1].textContent = v;
+      tb.appendChild(tr);
+    }
+    tip.hidden = false;
+    const wrap = $("mapwrap").getBoundingClientRect();
+    let left = e.clientX - wrap.left + 14, top = e.clientY - wrap.top + 14;
+    if (left + tip.offsetWidth > wrap.width - 4) left = e.clientX - wrap.left - tip.offsetWidth - 14;
+    if (top + tip.offsetHeight > wrap.height - 4) top = Math.max(4, e.clientY - wrap.top - tip.offsetHeight - 14);
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  });
+  $("map").addEventListener("mouseleave", () => { $("tip").hidden = true; });
+
+  // ---- downloads -----------------------------------------------------------
+  const stem = () => fileName.replace(/\.[^.]+$/, "") || "depthmapx";
+  function download(name, content, type) {
+    const blob = content instanceof Blob ? content : new Blob([content], { type: type || "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  const repTag = () => {
+    const t = result.reports[repIdx].suffix.trim().replace(/ /g, "_");
+    return t ? "_" + t : "";
+  };
+  $("dl-table").onclick = () => {
+    const d = result.delimiter;
+    download(stem() + "_vim" + (d === "\t" ? ".txt" : ".csv"), V.toCSV([result.outHeader, ...result.outRows], d), "text/csv");
+  };
+  $("dl-join").onclick = () => download(stem() + "_vim_join.csv", V.toCSV(result.join, ","), "text/csv");
+  $("dl-summary").onclick = () => download(stem() + "_vim_summary" + repTag() + ".txt",
+    V.summaryText(fileName, result.reports[repIdx], result, opts()));
+  $("dl-clusters").onclick = () => download(stem() + "_vim_clusters" + repTag() + ".csv",
+    V.toCSV(V.clustersRows(result.reports[repIdx].ranked), ","), "text/csv");
+
+  // print-resolution figure: title, map, legend, scale bar (always light)
+  $("dl-png").onclick = () => {
+    const rep = result.reports[repIdx], g = geometry(rep), mode = "light", pal = Palette.P.light;
+    const s = Math.max(2, Math.min(16, Math.floor(2400 / g.cols)));
+    const W0 = g.cols * s, H0 = g.rows * s;
+    const W = Math.max(W0, 900) + 96, m = 48;
+    const fs = Math.round(W / 60);
+    const font = (w, px) => w + " " + px + "px system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+    // lay out the legend first (wrapping), so the canvas height fits it
+    const items = legendItems(mode);
+    const measure = document.createElement("canvas").getContext("2d");
+    measure.font = font(400, fs);
+    const lineH = fs * 1.7, maxW = W - 2 * m;
+    const legendLines = [[]];
+    if (items) {
+      let used = 0;
+      for (const [c, t] of items) {
+        const w = fs * 1.3 + measure.measureText(t).width + fs * 1.6;
+        if (used + w > maxW && legendLines[legendLines.length - 1].length) { legendLines.push([]); used = 0; }
+        legendLines[legendLines.length - 1].push([c, t, used]);
+        used += w;
+      }
+    }
+    const titleH = fs * 3.6, scaleH = g.spacing ? fs * 2.6 : fs * 0.8;
+    const legendH = (items ? legendLines.length : 1) * lineH;
+    const H = Math.round(m + titleH + H0 + scaleH + legendH + fs * 2.2 + m * 0.4);
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = pal.surface; ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+    const titles = { class: "VIM Class", vim: "Visibility Integration Mismatch (VIM)", clusters: "Hidden-centre clusters (strong hidden centres, VIM ≥ " + opts().strong + ")" };
+    ctx.fillStyle = pal.ink; ctx.font = font(650, Math.round(fs * 1.35));
+    ctx.fillText(titles[view], m, m + fs * 1.2);
+    ctx.fillStyle = pal.ink2; ctx.font = font(400, fs);
+    ctx.fillText(fileName + " · " + rep.integ + " · " + rep.points.length.toLocaleString() + " points · " + rep.bandsUsed + " connectivity bands", m, m + fs * 2.7);
+    const mx = m + Math.floor((W - 2 * m - W0) / 2), my = Math.round(m + titleH);
+    drawGrid(ctx, rep, g, s, mx, my, mode);
+    drawLabels(ctx, rep, g, s, mx, my, mode, Math.round(fs * 0.9));
+
+    // scale bar, right-aligned directly under the map
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    if (g.spacing) {
+      const units = $("opt-units").value.trim();
+      const planW = g.cols * g.spacing, target = planW / 5;
+      const pow = Math.pow(10, Math.floor(Math.log10(target)));
+      const nice = [1, 2, 5, 10].map(k => k * pow).reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
+      const px = nice / g.spacing * s;
+      const x1 = mx + W0, x0 = x1 - px, y = my + H0 + fs * 0.9;
+      const t = Math.max(2, Math.round(fs / 8));
+      ctx.fillStyle = pal.ink;
+      ctx.fillRect(x0, y - t / 2, px, t); ctx.fillRect(x0, y - fs * 0.35, t, fs * 0.7); ctx.fillRect(x1 - t, y - fs * 0.35, t, fs * 0.7);
+      ctx.font = font(400, Math.round(fs * 0.9)); ctx.fillStyle = pal.ink2; ctx.textAlign = "right";
+      ctx.fillText(Number(nice.toPrecision(3)) + (units ? " " + units : ""), x0 - fs * 0.6, y);
+      ctx.textAlign = "left";
+    }
+
+    // legend
+    const ly0 = my + H0 + scaleH + lineH / 2;
+    ctx.font = font(400, fs);
+    if (items) {
+      legendLines.forEach((line, li) => {
+        const ly = ly0 + li * lineH;
+        for (const [c, t, off] of line) {
+          ctx.fillStyle = c; ctx.fillRect(m + off, ly - fs * 0.45, fs * 0.9, fs * 0.9);
+          ctx.fillStyle = pal.ink2; ctx.fillText(t, m + off + fs * 1.3, ly);
+        }
+      });
+    } else {
+      let lx = m;
+      ctx.fillStyle = pal.ink2; ctx.fillText("−5 false centre", lx, ly0);
+      lx += ctx.measureText("−5 false centre").width + fs * 0.6;
+      const rw = Math.min(fs * 14, maxW / 2.5);
+      for (let x = 0; x < rw; x++) {
+        const c = Palette.ramps.light(-5 + 10 * x / (rw - 1));
+        ctx.fillStyle = "rgb(" + c.join(",") + ")"; ctx.fillRect(lx + x, ly0 - fs * 0.45, 1, fs * 0.9);
+      }
+      lx += rw + fs * 0.6;
+      ctx.fillStyle = pal.ink2; ctx.fillText("+5 hidden centre  ·  gray = as expected (VIM 0)", lx, ly0);
+    }
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = pal.muted; ctx.font = font(400, Math.round(fs * 0.8));
+    ctx.fillText("depthmapx-vim " + V.VERSION + " · VIM = (integration − band median) ÷ band SD", m, H - m * 0.5);
+    cv.toBlob(b => download(stem() + "_vim_map_" + view + repTag() + ".png", b), "image/png");
+  };
+
+  // ---- controls ------------------------------------------------------------
+  const drop = $("drop");
+  $("file").addEventListener("change", e => e.target.files[0] && load(e.target.files[0]));
+  ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => e.dataTransfer.files[0] && load(e.dataTransfer.files[0]));
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    view = b.dataset.view;
+    document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    render();
+  }));
+  $("integ").addEventListener("change", e => { repIdx = +e.target.value; render(); });
+  $("labels").addEventListener("change", () => result && render());
+  $("labeltop").addEventListener("input", () => result && render());
+  $("rerun").addEventListener("click", () => fileText && process());
+  let rt;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => result && render(), 120); });
+
+  // test hook: process text directly (used by the validation harness)
+  window.__vimLoadText = (name, text) => { fileName = name; fileText = text; process(); return result; };
+})();
+</script>
+</body>
+</html>

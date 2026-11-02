@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below and this software."
+title: "depthmapx-vim: Visibility Integration Mismatch (VIM) for depthmapX visibility graph analysis"
+version: 1.0.0
+date-released: "2026-11-02"
+authors:
+  - family-names: "Jogy"
+    given-names: "Jennat Jennifer"
+  - family-names: "Dev"
+    given-names: "Govind"
+repository-code: "https://github.com/jejenjo/depthmapx-vim"
+url: "https://jejenjo.github.io/depthmapx-vim/"
+license: GPL-3.0-or-later
+keywords:
+  - space syntax
+  - visibility graph analysis
+  - depthmapX
+  - intelligibility
+  - healthcare architecture
+  - hospital circulation
+preferred-citation:
+  type: unpublished
+  title: "Visibility Integration Mismatch: A Space Syntax Measure in depthmapX for Locating Hospital Circulation Conflicts, a Case of Thrissur"
+  authors:
+    - family-names: "Jogy"
+      given-names: "Jennat Jennifer"
+    - family-names: "Dev"
+      given-names: "Govind"
+  year: 2026

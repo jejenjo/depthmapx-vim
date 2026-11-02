@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*_vim.csv
+*_vim.txt
+*_vim_summary*.txt
+*_vim_clusters*.csv
+*_vim_join.csv
+*_vim_map_*.svg
