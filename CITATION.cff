@@ -3,6 +3,7 @@ message: "If you use this software, please cite the paper below and this softwar
 title: "depthmapx-vim: Visibility Integration Mismatch (VIM) for depthmapX visibility graph analysis"
 version: 1.0.0
 date-released: "2026-11-02"
+doi: 10.5281/zenodo.23882070
 authors:
   - family-names: "Jogy"
     given-names: "Jennat Jennifer"

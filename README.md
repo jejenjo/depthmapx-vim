@@ -1,5 +1,7 @@
 # depthmapx-vim
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23882070.svg)](https://doi.org/10.5281/zenodo.23882070)
+
 **Visibility Integration Mismatch (VIM)** for [depthmapX](https://github.com/SpaceGroupUCL/depthmapX)
 visibility graph analysis (VGA).
 
@@ -197,6 +199,15 @@ If you use VIM in published work, please cite:
 > Jogy, J. J., & Dev, G. (2026). *Visibility Integration Mismatch: A Space Syntax Measure in
 > depthmapX for Locating Hospital Circulation Conflicts, a Case of Thrissur.* Unpublished
 > manuscript.
+
+and the software:
+
+> Jogy, J. J., & Dev, G. (2026). *depthmapx-vim: Visibility Integration Mismatch (VIM) for
+> depthmapX visibility graph analysis* (Version 1.0.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.23882071
+
+The DOI above is for version 1.0.0. To cite the software in general (always resolving to the
+latest version), use https://doi.org/10.5281/zenodo.23882070.
 
 See `CITATION.cff` for a machine-readable citation. GitHub's **Cite this repository** button uses
 it.
